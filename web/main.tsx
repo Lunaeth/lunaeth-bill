@@ -62,7 +62,7 @@ function App(){useLanguage();useEffect(()=>{const refreshConfig=()=>{void api('/
  {editable&&bill.input.items.length>0&&<div className="list-footer"><button className="text-button" onClick={()=>{if(confirm(t("清空当前类别的全部排除选择？")))void action(()=>update({...bill.input,items:bill.input.items.map(i=>category==='all'||i.categoryId===category?{...i,excludedPersonIds:[]}:i)}));}}>{t("重置本类选择")}</button><span>{category==='all'?t("全部商品"):bill.input.categories.find(c=>c.id===category)?.name}</span></div>}</>}
  {tab==='receipts'&&<>{editItem&&editable&&<ItemEditor key={editItem} bill={bill} itemId={editItem} busy={busy} onCancel={()=>setEditItem(null)} onSave={async item=>{await action(async()=>{await update(saveItemDraft(bill.input,item,uid(),today()));setEditItem(null);});}}/>}<div className="section-heading"><div><h2>{t("小票与原始记录")}</h2><p>{t("金额与税额对齐后，再确认小票。")}</p></div>{editable&&<button onClick={()=>{setEditItem('new');setEditReceipt(null);}}><Plus size={16}/>{t("手动添加商品")}</button>}</div>{editable&&!editItem&&<ReceiptUpload key={bill.id} billId={bill.id} busy={busy} recognizing={recognizing} files={uploadFiles} onFiles={setUploadFiles} configured={me.ocrConfigured} provider={me.ocrProvider} onManual={()=>setEditReceipt('new')} onRecognize={async()=>{await api(`/bills/${bill.id}/extract`,{fileIds:uploadFiles.map(f=>f.id),version:bill.version});setExtract(null);setRecognitionStarted(new Date().toISOString());setRecognizing(true);}}/>}
  {recognizing&&<RecognitionProgress startedAt={recognitionStarted}/>}{extract?.extracted&&<div className="extraction"><h3>{t("识别得到 ")}{extract.extracted.lines.length} {t(" 项明细")}</h3><p>{extract.extracted.merchant}　{t(" 总额 ")}{extract.extracted.registerTotalCents===null?t("未读清"):cad(extract.extracted.registerTotalCents)}</p>{extract.extracted.warnings.map((w:string,i:number)=><p className="warning" key={i}>{w}</p>)}<p>{receiptAmountsMatch(extract.extracted)?t("金额与税额已对齐，加入账单后自动标为已核对。"):t("金额或税额尚未核实，加入账单后请核对。")}</p><div className="actions"><button className="primary" disabled={busy} onClick={()=>void action(async()=>{if(bill.input.receipts.some(r=>r.sourceImages?.some(id=>extract.fileIds.includes(id))))throw new Error(t("这些小票图片已在账单中，请勿重复导入"));const x=extract.extracted;const reviewed=receiptAmountsMatch(x);const id=uid();const lines=x.lines.map((l:any)=>({id:uid(),receiptId:id,categoryId:bill.input.categories.find(c=>c.name===l.category)?.id||'8',description:l.description||l.rawLabel||t("待确认商品"),sourceLabel:l.rawLabel,taxable:l.taxMarker==='H'||(l.taxCents??0)>0,quantity:l.quantity,subtotalCents:l.subtotalCents??0,discountCents:l.discountCents??0,taxCents:l.taxCents??0,excludedPersonIds:[],excludedFromPool:l.excludedFromPool,sourceStatus:reviewed?'confirmed':'needs_review',note:t("原文：{0}；置信度 {1}；{2}{3}{4}",[l.rawLabel,l.confidence,l.note,l.taxCents===null?'；税额待确认，请核对金额旁的 H 税标':'',[l.subtotalCents,l.discountCents].includes(null)?'；含未读清金额，请核实':''])}));const omitted=lines.filter((l:any)=>l.excludedFromPool);const receipt={id,merchant:x.merchant||t("待确认商店"),date:x.date,registerTotalCents:x.registerTotalCents??0,taxTotalCents:x.taxTotalCents??lines.reduce((s:number,l:any)=>s+l.taxCents,0),excludedCents:omitted.reduce((s:number,l:any)=>s+l.subtotalCents+l.discountCents+l.taxCents,0),excludedTaxCents:omitted.reduce((s:number,l:any)=>s+l.taxCents,0),sourceImages:extract.fileIds,notes:x.warnings.join('\n'),reviewed};await update({...bill.input,receipts:[...bill.input.receipts,receipt],items:[...bill.input.items,...lines]});await api('/bills/'+bill.id+'/extraction-dismiss',{jobId:extract.jobId});setExtract(null);setUploadFiles([]);})}>{t("加入账单")}</button><button onClick={()=>void action(async()=>{await api('/bills/'+bill.id+'/extraction-dismiss',{jobId:extract.jobId});setExtract(null);})}>{t("放弃识别结果")}</button></div></div>}
- {editReceipt&&<ReceiptEditor key={editReceipt} bill={bill} receiptId={editReceipt} busy={busy} onCancel={()=>setEditReceipt(null)} onSave={async receipt=>{await action(async()=>{if(editReceipt==='new')receipt.sourceImages=uploadFiles.map(f=>f.id);await update({...bill.input,receipts:editReceipt==='new'?[...bill.input.receipts,receipt]:bill.input.receipts.map(r=>r.id===editReceipt?receipt:r)});setEditReceipt(null);setUploadFiles([]);});}}/>}
+ {editReceipt&&<ReceiptEditor key={editReceipt+bill.version} bill={bill} receiptId={editReceipt} busy={busy} onCancel={()=>setEditReceipt(null)} onSave={async (receipt,items)=>{await action(async()=>{if(editReceipt==='new')receipt.sourceImages=uploadFiles.map(f=>f.id);await update({...bill.input,items,receipts:editReceipt==='new'?[...bill.input.receipts,receipt]:bill.input.receipts.map(r=>r.id===editReceipt?receipt:r)});setEditReceipt(null);setUploadFiles([]);});}}/>}
  <div className="receipt-list">{bill.input.receipts.map(r=>{const check=checks.find(c=>c.id===r.id)!;const ok=!check.difference&&!check.taxDifference;return <article className="receipt-row" key={r.id}><div className="receipt-heading"><ReceiptText size={23}/><div><h3>{r.entryMode==='manual'?t("手动录入"):r.merchant}</h3><small>{r.date||t("日期待核对")}{r.entryMode==='manual'&&t(" · 按手动商品汇总")}</small></div><span className={'badge '+(r.reviewed?'final':'draft')}>{r.reviewed?t("已核对"):t("待核对")}</span></div><dl className="receipt-numbers"><div><dt>{t("小票实付")}</dt><dd>{cad(r.registerTotalCents)}</dd></div><div><dt>{t("移出分账池")}</dt><dd>{cad(r.excludedCents)}</dd></div><div><dt>{t("小票总税")}</dt><dd>{cad(r.taxTotalCents)}</dd></div><div><dt>{t("移出部分税")}</dt><dd>{cad(r.excludedTaxCents||0)}</dd></div></dl>{r.entryMode==='manual'&&<div className="manual-item-list">{bill.input.items.filter(i=>i.receiptId===r.id).map(i=><div key={i.id}><span>{i.description}<small>{cad(i.subtotalCents+i.discountCents+i.taxCents)}</small></span>{editable&&<button onClick={()=>setEditItem(i.id)}>{t("编辑商品")}</button>}</div>)}</div>}<div className={ok?'check-line':'warning'}>{ok?<><Check size={16}/>{t("金额与税额已对齐")}</>:<>{t("金额差 ")}{cad(check.difference)}{t("，税额差 ")}{cad(check.taxDifference)}</>}</div>{r.notes&&<p className="receipt-note">{r.notes}</p>}<div className="actions">{r.sourceImages?.map((id,i)=><a className="button-link" key={id} href={'/api/files/'+id} target="_blank" rel="noreferrer">{t("原图 ")}{i+1}</a>)}{editable&&<>{r.entryMode!=='manual'&&<button onClick={()=>setEditReceipt(r.id)}>{t("编辑小票")}</button>}{!r.reviewed&&<button disabled={!ok||busy} onClick={()=>void action(async()=>{if(bill.input.items.some(x=>x.receiptId===r.id&&x.sourceStatus==='needs_review')&&!confirm(t("请确认你已逐项核对商品、金额、优惠归属及税额分配。金额对齐不代表 AI 识别正确。确认这张小票？")))return;await update({...bill.input,receipts:bill.input.receipts.map(x=>x.id===r.id?{...x,reviewed:true}:x),items:bill.input.items.map(x=>x.receiptId===r.id?{...x,sourceStatus:'confirmed'}:x)});})}><Check size={16}/>{t("确认已核对")}</button>}</>}</div></article>;})}</div>{!bill.input.receipts.length&&<p className="empty">{t("还没有记录。上传小票识别，或手动添加商品。")}</p>}</>}
  {tab==='extras'&&<Extras bill={bill} editable={editable} busy={busy} onSave={input=>action(()=>update(input))}/>}
  {tab==='results'&&bill.status!=='final'&&<section className="empty"><h2>{t("等待全员确认")}</h2><p>{t("全部参与人确认选择后，这里会显示每个人的分摊金额和明细。")}</p></section>}{tab==='results'&&bill.status==='final'&&<Results bill={bill} result={result} error={calc.error} onCopy={()=>void action(async()=>{if(!result)return;await navigator.clipboard.writeText(t("{0}（{1}）\n转给：{2}\n{3}",[bill.title,statusLabel[bill.status],bill.payee?.displayName||'待设置',bill.payee?.emtAddress?'E-Transfer：'+bill.payee.emtAddress+'\n':''])+people.map(p=>`${p.displayName}: ${cad(result.perPersonCents[p.id])}`).join('\n')+t("\n合计 {0}\n结算取整差额 {1}",[cad(result.grandTotalCents),cad(result.roundingExcessCents)]));setCopied(true);})} copied={copied}/>}
@@ -73,7 +73,95 @@ function App(){useLanguage();useEffect(()=>{const refreshConfig=()=>{void api('/
 function ItemEditor({bill,itemId,busy,onSave,onCancel}:{bill:Bill;itemId:string;busy:boolean;onSave:(item:BillInput['items'][number])=>Promise<void>;onCancel:()=>void}){const {taxRateMilliPercent}=useSiteConfig();const item=bill.input.items.find(x=>x.id===itemId);const [error,setError]=useState('');
  return <form className="editor" onSubmit={e=>{e.preventDefault();const f=e.currentTarget;try{const taxable=new FormData(f).get('taxable')==='on';const net=money(f,'subtotal')+money(f,'discount');if(net<0)throw new Error(t("优惠不能超过原价"));const x={...item,id:item?.id||uid(),receiptId:field(f,'receipt'),categoryId:field(f,'category'),description:field(f,'description'),quantity:Number(field(f,'quantity')),subtotalCents:money(f,'subtotal'),discountCents:money(f,'discount'),taxCents:taxable?defaultTaxCents(net,taxRateMilliPercent):0,taxable,excludedPersonIds:item?.excludedPersonIds||[],excludedFromPool:new FormData(f).get('excluded')==='on',sourceStatus:'confirmed',note:field(f,'note')};if(x.discountCents>0)throw new Error(t("优惠请填写负数"));void onSave(x);}catch(e){setError((e as Error).message);}}}><h3>{item?t("编辑商品"):t("添加商品")}</h3>{!bill.input.receipts.length&&<p>{t("直接填写商品和金额即可，手动记录会自动汇总总额与税额。")}</p>}<div className="form-grid"><label className="wide">{t("商品名称")}<input name="description" defaultValue={item?.description} required maxLength={200}/></label><label>{t("记录到")}<select name="receipt" defaultValue={item?.receiptId||bill.input.receipts.find(r=>r.entryMode==='manual')?.id||manualReceiptChoice}>{bill.input.receipts.map(r=><option key={r.id} value={r.id}>{r.entryMode==='manual'?t("手动录入"):r.merchant}</option>)}{!bill.input.receipts.some(r=>r.entryMode==='manual')&&<option value={manualReceiptChoice}>{t("手动记录（按商品自动汇总）")}</option>}</select></label><label>{t("类别")}<select name="category" defaultValue={item?.categoryId||'8'}>{bill.input.categories.map(c=><option key={c.id} value={c.id}>{t(c.name)}</option>)}</select></label><ItemMoneyFields item={item} rate={taxRateMilliPercent}/><label>{t("数量")}<input name="quantity" type="number" min="0.001" step="any" defaultValue={item?.quantity||1} required/></label><label className="wide">{t("来源与核对备注")}<textarea name="note" defaultValue={item?.note} maxLength={4000}/></label><label className="check-label wide"><input type="checkbox" name="excluded" defaultChecked={item?.excludedFromPool}/>{t("整项移出分账池（同步核对小票移出金额与税额）")}</label></div>{error&&<p className="error" role="alert">{t(error)}</p>}<div className="actions"><button className="primary" disabled={busy}>{t("保存商品")}</button><button type="button" onClick={onCancel}>{t("取消")}</button></div></form>;
 }
-function ReceiptEditor({bill,receiptId,busy,onSave,onCancel}:{bill:Bill;receiptId:string;busy:boolean;onSave:(r:BillInput['receipts'][number])=>Promise<void>;onCancel:()=>void}){const r=bill.input.receipts.find(r=>r.id===receiptId);const [error,setError]=useState('');return <form className="editor" onSubmit={e=>{e.preventDefault();const f=e.currentTarget;try{void onSave({...r,id:r?.id||uid(),merchant:field(f,'merchant'),date:field(f,'date'),registerTotalCents:money(f,'total'),excludedCents:money(f,'excluded'),taxTotalCents:money(f,'tax'),excludedTaxCents:money(f,'excludedTax'),notes:field(f,'notes'),reviewed:false});}catch(e){setError((e as Error).message);}}}><h3>{r?t("编辑小票"):t("添加小票")}</h3><div className="form-grid"><label>{t("商店名称")}<input name="merchant" required defaultValue={r?.merchant} maxLength={200}/></label><label>{t("日期")}<input name="date" type="date" defaultValue={r?.date||today()}/></label><MoneyField required name="total" label={t("小票实付总额")} value={r?.registerTotalCents}/><MoneyField name="tax" label={t("小票显示总税")} value={r?.taxTotalCents}/><MoneyField name="excluded" label={t("移出分账池的实付")} value={r?.excludedCents}/><MoneyField name="excludedTax" label={t("移出部分包含的税")} value={r?.excludedTaxCents}/><label className="wide">{t("备注")}<textarea name="notes" defaultValue={r?.notes} maxLength={4000}/></label></div>{error&&<p className="error" role="alert">{t(error)}</p>}<div className="actions"><button className="primary" disabled={busy}>{t("保存小票")}</button><button type="button" onClick={onCancel}>{t("取消")}</button></div></form>;}
+type ReceiptRow = BillInput['receipts'][number];
+type ReceiptItem = BillInput['items'][number];
+
+function ReceiptEditor({bill,receiptId,busy,onSave,onCancel}:{
+ bill:Bill;receiptId:string;busy:boolean;
+ onSave:(receipt:ReceiptRow,items:ReceiptItem[])=>Promise<void>;onCancel:()=>void
+}){
+ const r=bill.input.receipts.find(row=>row.id===receiptId);
+ const lines=bill.input.items.filter(item=>item.receiptId===receiptId);
+ const initial=reconcile(bill.input).find(check=>check.id===receiptId);
+ const {taxRateMilliPercent}=useSiteConfig();
+ const [error,setError]=useState('');
+ const [difference,setDifference]=useState(initial);
+ const lastExcludedDelta=useRef({gross:0,tax:0});
+ const [expanded,setExpanded]=useState(Boolean(initial?.difference||initial?.taxDifference));
+
+ function readForm(form:HTMLFormElement){
+  const data=new FormData(form);
+  const amount=(name:string)=>parseMoney(String(data.get(name)||'0'));
+  let grossDelta=0,taxDelta=0;
+  const items=bill.input.items.map(item=>{
+   if(item.receiptId!==receiptId)return item;
+   const subtotalCents=amount('price-'+item.id);
+   const discountCents=amount('discount-'+item.id);
+   const taxable=data.has('taxable-'+item.id);
+   const net=subtotalCents+discountCents;
+   if(subtotalCents<0||discountCents>0||net<0)throw new Error(t("请核对原价和优惠金额"));
+   if(subtotalCents===item.subtotalCents&&discountCents===item.discountCents&&taxable===(item.taxable??item.taxCents>0))return item;
+   const taxCents=taxable?defaultTaxCents(net,taxRateMilliPercent):0;
+   if(item.excludedFromPool){
+    taxDelta+=taxCents-item.taxCents;
+    grossDelta+=net-item.subtotalCents-item.discountCents+taxCents-item.taxCents;
+   }
+   return {...item,subtotalCents,discountCents,taxable,taxCents};
+  });
+  const excludedCents=amount('excluded')+grossDelta-lastExcludedDelta.current.gross;
+  const excludedTaxCents=amount('excludedTax')+taxDelta-lastExcludedDelta.current.tax;
+  const receipt:ReceiptRow={...r,id:r?.id||receiptId,merchant:String(data.get('merchant')||'').trim(),
+   date:String(data.get('date')||''),registerTotalCents:amount('total'),taxTotalCents:amount('tax'),
+   excludedCents,excludedTaxCents,notes:String(data.get('notes')||''),reviewed:false};
+  if(lastExcludedDelta.current.gross!==grossDelta)(form.elements.namedItem('excluded') as HTMLInputElement).value=moneyInput(excludedCents);
+  if(lastExcludedDelta.current.tax!==taxDelta)(form.elements.namedItem('excludedTax') as HTMLInputElement).value=moneyInput(excludedTaxCents);
+  lastExcludedDelta.current={gross:grossDelta,tax:taxDelta};
+  return {receipt,items};
+ }
+
+ return <form className="editor" onChange={event=>{
+  try{
+   const {receipt,items}=readForm(event.currentTarget);
+   const [check]=reconcile({...bill.input,receipts:[receipt],items});
+   setDifference(check);setError('');
+   if(check.difference||check.taxDifference)setExpanded(true);
+  }catch{setDifference(undefined);}
+ }} onSubmit={event=>{
+  event.preventDefault();
+  try{
+   const {receipt,items}=readForm(event.currentTarget);
+   if(!r)receipt.id=uid();
+   void onSave(receipt,items);
+  }catch(e){setError((e as Error).message);}
+ }}>
+  <h3>{r?t("编辑小票"):t("添加小票")}</h3>
+  <div className="form-grid">
+   <label>{t("商店名称")}<input name="merchant" required defaultValue={r?.merchant} maxLength={200}/></label>
+   <label>{t("日期")}<input name="date" type="date" defaultValue={r?.date||today()}/></label>
+   <MoneyField required name="total" label={t("小票实付总额")} value={r?.registerTotalCents}/>
+   <MoneyField name="tax" label={t("小票显示总税")} value={r?.taxTotalCents}/>
+   <MoneyField name="excluded" label={t("移出分账池的实付")} value={r?.excludedCents}/>
+   <MoneyField name="excludedTax" label={t("移出部分包含的税")} value={r?.excludedTaxCents}/>
+   <label className="wide">{t("备注")}<textarea name="notes" defaultValue={r?.notes} maxLength={4000}/></label>
+  </div>
+  {r&&lines.length>0&&<details open={expanded} onToggle={e=>setExpanded(e.currentTarget.open)} className="receipt-editor-items">
+   <summary>{t("商品明细")} · {lines.length}</summary>
+   {lines.map(item=><fieldset key={item.id}>
+    <legend>{item.description}</legend>
+    {item.sourceLabel&&item.sourceLabel!==item.description&&<small>{t("小票原文：")}{item.sourceLabel}</small>}
+    {item.excludedFromPool&&<small>{t("已移出分账池")}</small>}
+    <div className="form-grid">
+     <MoneyField required name={'price-'+item.id} label={t("原价")} value={item.subtotalCents}/>
+     <MoneyField name={'discount-'+item.id} label={t("优惠（负数）")} value={item.discountCents}/>
+     <label className="check-label"><input name={'taxable-'+item.id} type="checkbox" defaultChecked={item.taxable??item.taxCents>0}/>{t("有税（{0}%）",[taxRateMilliPercent/1000])}</label>
+    </div>
+   </fieldset>)}
+  </details>}
+  {r&&<p aria-live="polite" className={difference&&!difference.difference&&!difference.taxDifference?'check-line':'warning'}>{!difference?t("请核对原价和优惠金额"):difference.difference||difference.taxDifference?<>{t("金额差 ")}{cad(difference.difference)}{t("，税额差 ")}{cad(difference.taxDifference)}</>:t("金额与税额已对齐")}</p>}
+  {error&&<p className="error" role="alert">{t(error)}</p>}
+  <div className="actions"><button className="primary" disabled={busy}>{t("保存小票")}</button><button type="button" onClick={onCancel}>{t("取消")}</button></div>
+ </form>;
+}
 function Extras({bill,editable,busy,onSave}:{bill:Bill;editable:boolean;busy:boolean;onSave:(i:BillInput)=>Promise<void>}){const [error,setError]=useState('');return <><div className="section-heading"><div><h2>{t("额外费用")}</h2><p>{t("按人收取与总额均摊，分开记清楚。")}</p></div></div>{bill.input.extraCharges.map(c=><div className="fee-row" key={c.id}><div><h3>{c.description}</h3><p>{c.kind==='fixed-per-person'?t("每人 ")+cad(c.perPersonCents||0):t("总额 ")+cad(c.totalCents||0)+t(" 均摊")} / {c.personIds.map(id=>bill.input.people.find(p=>p.id===id)?.displayName).join('、')}</p></div>{editable&&<button disabled={busy} onClick={()=>{if(confirm(t("移除这项额外费用？")))void onSave({...bill.input,extraCharges:bill.input.extraCharges.filter(x=>x.id!==c.id)});}}>{t("移除")}</button>}</div>)}{!bill.input.extraCharges.length&&<p className="notice">{t("当前没有额外费用。")}</p>}{editable&&<form className="editor" onSubmit={e=>{e.preventDefault();const f=e.currentTarget;try{const kind=field(f,'kind') as 'fixed-per-person'|'split-total';const amount=money(f,'amount');const personIds=new FormData(f).getAll('person').map(String);if(amount<0||!personIds.length)throw new Error(t("金额不得为负，且至少选择一名成员"));void onSave({...bill.input,extraCharges:[...bill.input.extraCharges,{id:uid(),description:field(f,'description'),kind,personIds,...(kind==='fixed-per-person'?{perPersonCents:amount}:{totalCents:amount})}]}).then(()=>f.reset());}catch(e){setError((e as Error).message);}}}><h3>{t("添加一笔费用")}</h3><div className="form-grid"><label>{t("费用名称")}<input name="description" required placeholder={t("例如：油费")}/></label><label>{t("收费方式")}<select name="kind"><option value="fixed-per-person">{t("每人固定金额")}</option><option value="split-total">{t("总额由所选成员均摊")}</option></select></label><MoneyField required label={t("金额")} name="amount"/><fieldset className="wide"><legend>{t("参与成员")}</legend><div className="person-checks">{bill.input.people.filter(p=>p.enabled).map(p=><label key={p.id}><input type="checkbox" name="person" value={p.id}/>{p.displayName}</label>)}</div></fieldset></div><p className="aside-note">{t("例：每人 $2.50，选三人，合计 $7.50。均摊费用计入个人合计后取整。")}</p>{error&&<p className="error" role="alert">{t(error)}</p>}<button className="primary" disabled={busy}><Plus size={17}/>{t("添加费用")}</button></form>}</>;}
 function EmtAddress({payee}:{payee:BillContact|null}){return payee?.emtAddress?<p className="emt-address"><span>E-Transfer</span><span>{payee.emtAddress}</span></p>:null;}
 function PayeeField({bill,roster,busy,onChange}:{bill:Bill;roster:BillInput['people'];busy:boolean;onChange:(id:string)=>void}){
