@@ -311,7 +311,7 @@
   "AI 正在读取并整理小票 · ": "AI is reading your receipt · ",
   " 秒": " seconds",
   "AI 识别进行中": "AI recognition in progress",
-  "正在提取商品、优惠和税额；Costco 商品会补充中文名，必要时查询商品资料。完成后会自动显示结果。": "Reading items, discounts and taxes. Costco items get Chinese names, with product lookups when needed. Results appear automatically.",
+  "正在提取商品、优惠和税额；所有商品默认补充中文名，必要时查询商品资料。完成后会自动显示结果。": "Reading items, discounts and taxes. Items get Chinese names, with product lookups when needed. Results appear automatically.",
   "可以刷新或离开，后台会保留识别结果。": "You can refresh or leave; recognition continues in the background.",
   "已删除的账单": "Deleted bills",
   "关闭回收站": "Close recycle bin",

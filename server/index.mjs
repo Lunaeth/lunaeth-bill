@@ -34,7 +34,7 @@ if(!db.prepare('PRAGMA table_info(bills)').all().some(x=>x.name==='created_by'))
 }
 if(!db.prepare('PRAGMA table_info(bills)').all().some(x=>x.name==='payee_person'))db.exec('ALTER TABLE bills ADD COLUMN payee_person TEXT');
 const get=(q,...p)=>db.prepare(q).get(...p),all=(q,...p)=>db.prepare(q).all(...p),run=(q,...p)=>db.prepare(q).run(...p);
-const siteSettings=createSettings(db,data);configureOCR(()=>siteSettings.runtime());
+const siteSettings=createSettings(db,data);configureOCR(provider=>siteSettings.runtime(provider));
 const now=()=>new Date().toISOString(),hash=s=>createHash('sha256').update(s).digest('hex'),token=()=>randomBytes(32).toString('base64url');
 if(!db.prepare('PRAGMA table_info(bills)').all().some(x=>x.name==='share_code'))db.exec('ALTER TABLE bills ADD COLUMN share_code TEXT');
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS bills_share_code ON bills(share_code)');

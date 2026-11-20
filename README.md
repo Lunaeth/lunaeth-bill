@@ -35,7 +35,7 @@ Open **Settings → Website and AI**, choose a provider, enter its key, optional
 
 Keys are AES-256-GCM encrypted in SQLite. The separate `DATA_DIR/settings.key` file must be included in private backups. APIs return only whether a key is configured; they never return the key itself. Environment-provided keys remain supported as a fallback until explicitly replaced or removed in the administrator panel.
 
-PDF pages are rendered locally for image-only APIs. Original receipts remain in the private SQLite store. Costco name lookup uses provider search when available (Gemini/OpenAI); other adapters preserve the model's translation and uncertain original labels.
+PDF pages are rendered locally for image-only APIs. Original receipts remain in the private SQLite store. All stores receive Simplified Chinese item names. Uncertain labels are checked using the selected Gemini or OpenAI service, or a configured Gemini / OpenAI key when another OCR provider is selected. Product search receives the store name and printed item identifiers. Unverified labels retain the printed text.
 
 ## Deployment and backup
 
