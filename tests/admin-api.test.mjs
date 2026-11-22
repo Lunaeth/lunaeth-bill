@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {mkdtempSync,readFileSync} from 'node:fs';import {tmpdir} from 'node:os';import path from 'node:path';
-import {requestInProcess} from './http-in-process.mjs';import {blankInput,saveItemDraft,manualReceiptChoice,defaultNames} from '../dist/model.js';
+import {requestInProcess} from './http-in-process.mjs';import {blankInput,saveItemDraft,setSoloBuyer,clearSoloBuyer,syncBillParticipants,manualReceiptChoice,defaultNames} from '../dist/model.js';
 test('admin settings, privacy, tax repricing, final immutability, member reset and share permissions',async()=>{
  const data=mkdtempSync(path.join(tmpdir(),'bill-admin-api-'));Object.assign(process.env,{DATA_DIR:data,NODE_ENV:'test',APP_ORIGIN:'http://test.local',OPENAI_API_KEY:'',GEMINI_API_KEY:''});
  const {app,db}=await import('../server/index.mjs?admin-test');let ownerCookie='',memberCookie='';
@@ -29,5 +29,34 @@ test('admin settings, privacy, tax repricing, final immutability, member reset a
  const reset=await req('/members/reset-pin',{personId:'test_member'});assert.equal(reset.status,200);assert.equal((await req('/me',undefined,'GET',memberCookie)).status,401);assert.equal((await req('/login',{username:'test_member',password:'2468'})).status,401);
  const resetResult=await req('/reset',{token:reset.data.token,password:'5678'});assert.equal(resetResult.status,200);assert.equal((await req('/reset',{token:reset.data.token,password:'9876'})).status,403);
  const own=(await req('/bills',{title:'Member-created synthetic bill'},'POST',resetResult.cookie)).data;assert.equal(own.canManage,true);assert.equal((await req('/bills/'+own.id,{version:own.version},'DELETE',resetResult.cookie)).status,200);assert.equal((await req('/bills/'+own.shareCode)).status,404);
+ // Solo purchase workflow: set buyer, switch buyer, sync participants, lock for regular members after publish, allow owner override.
+ const thirdPeople=[...people,{id:'test_third',displayName:'Test Third',enabled:true}];assert.equal((await req('/roster',{people:thirdPeople},'PUT')).status,200);
+ let soloBill=(await req('/bills',{title:'Synthetic solo bill',participantIds:people.map(p=>p.id)})).data;
+ const soloItem={id:'solo-item',receiptId:manualReceiptChoice,categoryId:'8',description:'Synthetic snack',quantity:1,subtotalCents:500,discountCents:0,taxCents:0,taxable:false,excludedPersonIds:[],excludedFromPool:false};
+ let soloInput=saveItemDraft(soloBill.input,soloItem,'solo-receipt','2026-11-21');
+ soloInput=setSoloBuyer(soloInput,'solo-item','test_member');
+ assert.equal(soloInput.items[0].soloBuyerId,'test_member');
+ assert.deepEqual(soloInput.items[0].excludedPersonIds,[defaultNames[0]]);
+ // Adding a new participant keeps them excluded from existing solo items.
+ soloInput=syncBillParticipants(soloInput,thirdPeople);
+ assert.deepEqual(soloInput.items[0].excludedPersonIds.sort(),[defaultNames[0],'test_third'].sort());
+ // Switching solo buyer updates exclusions automatically.
+ soloInput=setSoloBuyer(soloInput,'solo-item',defaultNames[0]);
+ assert.equal(soloInput.items[0].soloBuyerId,defaultNames[0]);
+ assert.deepEqual(soloInput.items[0].excludedPersonIds.sort(),['test_member','test_third'].sort());
+ // Removing solo buyer restores default shared state; then re-apply for publish test.
+ const cleared=clearSoloBuyer(soloInput,'solo-item');
+ assert.equal(cleared.items[0].soloBuyerId,undefined);
+ assert.deepEqual(cleared.items[0].excludedPersonIds,[]);
+ soloInput=syncBillParticipants(setSoloBuyer(soloInput,'solo-item','test_member'),people);
+ soloBill=(await req('/bills/'+soloBill.id,{version:soloBill.version,input:soloInput},'PUT')).data;
+ soloBill=(await req('/bills/'+soloBill.id+'/publish',{version:soloBill.version})).data;
+ // Regular member cannot alter a solo item once published.
+ const memberCookieAfterReset=resetResult.cookie;
+ assert.equal((await req('/bills/'+soloBill.id+'/selection',{version:soloBill.version,itemId:'solo-item',personId:'test_member'},'POST',memberCookieAfterReset)).status,403);
+ // Administrator can still adjust a solo item after publish; sharing clears soloBuyerId.
+ soloBill=(await req('/bills/'+soloBill.id+'/selection',{version:soloBill.version,itemId:'solo-item',personId:defaultNames[0]},'POST',ownerCookie)).data;
+ assert.equal(soloBill.input.items[0].soloBuyerId,undefined);
+ assert.deepEqual(soloBill.input.items[0].excludedPersonIds,[]);
  }finally{db.close();}
 });

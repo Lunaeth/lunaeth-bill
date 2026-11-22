@@ -1,0 +1,238 @@
+@import './tokens.css';
+@import './styles.css' layer(base);
+@import './rareui/rare-base.css';
+
+/* Seamlessly map RareUI variables to lunaeth-bill's warm paper & forest green theme */
+:root {
+  --rare-bg: var(--color-paper);
+  --rare-surface: var(--color-cotton);
+  --rare-surface-2: var(--color-paper-2);
+  --rare-surface-hover: var(--color-paper-3);
+  --rare-input-bg: var(--color-cotton);
+  --rare-fg: var(--color-ink);
+  --rare-muted: var(--color-muted);
+  --rare-border: var(--color-rule-2);
+  --rare-accent: var(--color-accent);
+  --rare-accent-fg: var(--color-accent-ink);
+  --rare-accent-soft: var(--color-green-wash);
+  --rare-danger: var(--color-error);
+  --rare-success: #2a7a4f;
+  --rare-warning: var(--color-warning);
+}
+
+/* Harmonious dark forest palette when switched via RareUI ThemeSelector */
+:root[data-theme='dark'] {
+  --color-paper: #121714;
+  --color-paper-2: #1a211d;
+  --color-paper-3: #232d27;
+  --color-cotton: #161d19;
+  --color-ink: #e8eee9;
+  --color-ink-2: #c9d5cc;
+  --color-muted: #93a397;
+  --color-rule: #26312a;
+  --color-rule-2: #36453c;
+  --color-accent: #52b788;
+  --color-accent-2: #40916c;
+  --color-accent-ink: #0c1711;
+  --color-focus: #74c69d;
+  --color-green-wash: rgba(82, 183, 136, 0.16);
+  --color-selection: rgba(82, 183, 136, 0.28);
+  --color-error: #f08074;
+  --color-error-border: rgba(240, 128, 116, 0.45);
+  --color-error-wash: rgba(240, 128, 116, 0.14);
+  --color-warning: #e6be6c;
+  --color-warning-wash: rgba(230, 190, 108, 0.14);
+}
+
+.rare-bill-workflow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rare-bill-workflow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 28px;
+}
+
+.workflow .rare-bill-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.workflow .rare-bill-step.current {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.workflow .rare-bill-step.complete {
+  color: var(--color-accent);
+}
+
+.workflow .rare-bill-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rare-bill-drawer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rare-bill-drawer-card {
+  border: 1px solid var(--color-rule);
+  background: var(--color-paper-2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rare-bill-drawer-card strong {
+  display: block;
+  font-size: 14px;
+  color: var(--color-ink);
+}
+
+.rare-bill-drawer-card small {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-muted);
+}
+
+/* Mobile collapsible header drawer (keeps desktop topbar unchanged) */
+.mobile-menu-trigger {
+  display: none;
+}
+
+@media (max-width: 780px) {
+  .topbar {
+    min-height: 64px !important;
+    height: auto !important;
+    padding-block: 10px !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+
+  .desktop-only-controls {
+    display: none !important;
+  }
+
+  .mobile-menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 6px 12px;
+    border: 1px solid var(--color-rule-2);
+    border-radius: 10px;
+    background: var(--color-cotton);
+    color: var(--color-ink);
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+}
+
+.rare-mobile-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rare-drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rare-drawer-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.rare-drawer-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rare-drawer-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-rule-2);
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.rare-drawer-link svg {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.rare-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-rule);
+}
+
+.rare-drawer-actions button {
+  width: 100%;
+  justify-content: center;
+}
+
+.rare-drawer-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
+  font-size: 13px;
+}
+
+.rare-drawer-user small {
+  color: var(--color-muted);
+}
+
+@media print {
+  [data-rare-root],
+  .mobile-menu-trigger {
+    display: none !important;
+  }
+}

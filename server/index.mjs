@@ -49,7 +49,7 @@ function newShareCode(){
 tx(()=>{for(const b of all('SELECT id FROM bills WHERE share_code IS NULL'))run('UPDATE bills SET share_code=? WHERE id=?',newShareCode(),b.id);});
 const scrypt=promisify(scryptCb);const setupPath=path.join(data,'setup-token');if(!get('SELECT id FROM users LIMIT 1')&&!existsSync(setupPath))writeFileSync(setupPath,token(),{mode:0o600});
 const app=express();app.disable('x-powered-by');if(process.env.TRUST_PROXY==='1')app.set('trust proxy',1);
-app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'","data:","blob:"],fontSrc:["'self'"],connectSrc:["'self'"],objectSrc:["'none'"],frameAncestors:["'none'"],upgradeInsecureRequests:process.env.NODE_ENV==='production'?[]:null}},crossOriginEmbedderPolicy:false}));
+app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'","https://static.cloudflareinsights.com"],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'","data:","blob:"],fontSrc:["'self'"],connectSrc:["'self'","https://cloudflareinsights.com"],objectSrc:["'none'"],frameAncestors:["'none'"],upgradeInsecureRequests:process.env.NODE_ENV==='production'?[]:null}},crossOriginEmbedderPolicy:false}));
 app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');if(!['GET','HEAD'].includes(req.method)){if(req.get('X-Bill-Request')!=='1')return res.status(403).json({error:'请求来源校验失败'});const origin=req.get('Origin');const allowed=process.env.APP_ORIGIN||'http://localhost:5178';if(origin&&!allowed.split(',').includes(origin))return res.status(403).json({error:'请求来源不允许'});}next();});
 app.use(express.json({limit:'24mb'}));
 app.use('/api',rateLimit({windowMs:60000,limit:300,standardHeaders:'draft-8',legacyHeaders:false,message:{error:'请求过于频繁，请稍后再试'}}));
@@ -158,7 +158,7 @@ app.post('/api/bills/:id/payee',auth,manager,(req,res)=>res.json(tx(()=>{
 })));
 app.delete('/api/bills/:id',auth,manager,(req,res)=>{tx(()=>{const b=bill(req.params.id,req.user);version(b,req.body.version);run('UPDATE bills SET deleted_at=?,updated=?,version=version+1 WHERE id=?',now(),now(),b.id);audit(req.user,'delete',b.id,b.version+1);});res.json({ok:true});});
 app.post('/api/bills/:id/restore',auth,(req,res)=>{tx(()=>{const b=get('SELECT * FROM bills WHERE id=? AND deleted_at IS NOT NULL',req.params.id);if(!b)fail('回收站中没有此账单',404);if(!canManage(b,req.user))fail('仅创建者或管理员可恢复此账单',403);version(b,req.body.version);run('UPDATE bills SET deleted_at=NULL,updated=?,version=version+1 WHERE id=?',now(),b.id);audit(req.user,'restore',b.id,b.version+1);});res.json({ok:true});});
-app.put('/api/bills/:id',auth,manager,(req,res)=>res.json(tx(()=>{const b=bill(req.params.id,req.user);version(b,req.body.version);if(b.status!=='draft')fail('请先重新打开账单，修改后所有成员需要重新确认',409);const input=validateDraft(req.body.input);if(!input.people.some(p=>p.enabled))fail('至少需要一位参与人');if(input.extraCharges.some(c=>c.personIds.some(id=>!input.people.some(p=>p.id===id&&p.enabled))))fail('请先修改涉及未参与成员的额外费用');if(input.people.some(p=>!roster().some(r=>r.id===p.id)))fail('请先在成员设置中登记新成员');for(const r of input.receipts)for(const f of r.sourceImages||[])if(!get('SELECT id FROM files WHERE id=? AND bill=?',f,b.id))fail('小票附件引用无效');b.input=input;b.title=String(req.body.title||b.title).slice(0,120);b.confirmations={};b.snapshot=null;return persist(b,req.user,'edit');})));
+app.put('/api/bills/:id',auth,manager,(req,res)=>res.json(tx(()=>{const b=bill(req.params.id,req.user);version(b,req.body.version);if(b.status!=='draft')fail('请先重新打开账单，修改后所有成员需要重新确认',409);const input=validateDraft(req.body.input);if(!input.people.some(p=>p.enabled))fail('至少需要一位参与人');if(input.extraCharges.some(c=>c.personIds.some(id=>!input.people.some(p=>p.id===id&&p.enabled))))fail('请先修改涉及未参与成员的额外费用');if(input.items.some(i=>!i.excludedFromPool&&i.soloBuyerId&&!input.people.some(p=>p.id===i.soloBuyerId&&p.enabled)))fail('独购人必须是本次参与成员');if(input.people.some(p=>!roster().some(r=>r.id===p.id)))fail('请先在成员设置中登记新成员');for(const r of input.receipts)for(const f of r.sourceImages||[])if(!get('SELECT id FROM files WHERE id=? AND bill=?',f,b.id))fail('小票附件引用无效');b.input=input;b.title=String(req.body.title||b.title).slice(0,120);b.confirmations={};b.snapshot=null;return persist(b,req.user,'edit');})));
 app.post('/api/bills/:id/publish',auth,manager,(req,res)=>res.json(tx(()=>{const b=bill(req.params.id,req.user);version(b,req.body.version);if(b.status!=='draft')fail('账单已发布',409);ready(b.input);b.status='selecting';b.confirmations={};return persist(b,req.user,'publish');})));
 app.post('/api/bills/:id/reopen',auth,manager,(req,res)=>res.json(tx(()=>{const b=bill(req.params.id,req.user);version(b,req.body.version);b.status='draft';b.confirmations={};b.snapshot=null;return persist(b,req.user,'reopen');})));
 function selectionTarget(b,user,requested){
@@ -170,7 +170,10 @@ function selectionTarget(b,user,requested){
 app.post('/api/bills/:id/selection',auth,(req,res)=>res.json(tx(()=>{
  const b=bill(req.params.id,req.user);version(b,req.body.version);if(b.status!=='selecting')fail('当前账单未开放选择',409);
  const target=selectionTarget(b,req.user,req.body.personId);
- if(!b.input.items.some(i=>i.id===req.body.itemId&&!i.excludedFromPool))fail('商品不存在或不在分账池');
+ const item=b.input.items.find(i=>i.id===req.body.itemId&&!i.excludedFromPool);
+ if(!item)fail('商品不存在或不在分账池');
+ // Only the administrator may alter a solo item once the bill is open for selection.
+ if(item.soloBuyerId&&req.user.role!=='owner')fail('独购商品仅管理员可修改',403);
  b.input=toggleExclusion(b.input,req.body.itemId,target);delete b.confirmations[target];b.snapshot=null;
  return persist(b,req.user,target===req.user.person?'selection':'proxy_selection:'+target);
 })));

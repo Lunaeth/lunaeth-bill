@@ -10,6 +10,7 @@ export interface LineItem {
   id: string; receiptId: string; categoryId: string; description: string;
   quantity: number; subtotalCents: number; discountCents: number; taxCents: number;
   excludedPersonIds: string[]; excludedFromPool: boolean;
+  soloBuyerId?: string;
   sourceStatus?: string; note?: string;
 }
 export interface ExtraCharge {

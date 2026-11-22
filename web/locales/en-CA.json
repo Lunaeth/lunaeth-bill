@@ -501,5 +501,19 @@
   "成员不存在": "Member not found",
   "请检查成员姓名和 E-Transfer 地址": "Check the member name and E-Transfer address",
   "请检查成员姓名": "Check the member name",
-  "先上传小票识别，或手动添加小票与商品。": "Upload a receipt or add items manually."
+  "先上传小票识别，或手动添加小票与商品。": "Upload a receipt or add items manually.",
+  "独购": "Solo",
+  "独购人必须是本次参与成员": "The solo buyer must be a participant in this bill",
+  "移出分账池的商品不能设为独购": "Items excluded from sharing cannot be marked as solo",
+  "独购商品的独购人设置不一致，请重新选择": "The solo buyer selection is inconsistent; please choose again",
+  "独购商品仅管理员可修改": "Only the administrator can change solo items",
+  "请先核对小票后再设置独购": "Review the receipt before marking items as solo",
+  "独购模式：请在下方选择独购人，其余成员将自动排除。": "Solo mode: select the buyer below. Everyone else will be excluded automatically.",
+  "已设为 {0} 独购；点击其他成员可切换独购人，或再次点击「独购」取消。": "Marked as a solo purchase for {0}. Tap another member to switch, or tap Solo again to cancel.",
+  "独购商品（仅管理员可修改）": "Solo item (administrator only)",
+  "还有商品已开启独购但尚未选择独购人，请先选择独购人或取消独购。": "Some solo items do not have a buyer selected yet. Please choose a buyer or cancel solo mode.",
+  "选择 {0} 为 {1} 的独购人": "Select {0} as the solo buyer for {1}",
+  "关联站点": "Related sites",
+  "315 生活看板": "315 Board",
+  "站点导航": "Portal"
 }

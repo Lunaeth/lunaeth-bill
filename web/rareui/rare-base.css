@@ -1,0 +1,65 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-background: var(--rare-bg, #ffffff);
+  --color-foreground: var(--rare-fg, #18181b);
+  --color-card: var(--rare-surface, #ffffff);
+  --color-card-foreground: var(--rare-fg, #18181b);
+  --color-popover: var(--rare-surface, #ffffff);
+  --color-popover-foreground: var(--rare-fg, #18181b);
+  --color-primary: var(--rare-accent, #214e3d);
+  --color-primary-foreground: var(--rare-accent-fg, #ffffff);
+  --color-secondary: var(--rare-surface-2, #f4f4f5);
+  --color-secondary-foreground: var(--rare-fg, #18181b);
+  --color-muted: var(--rare-surface-2, #f4f4f5);
+  --color-muted-foreground: var(--rare-muted, #626c60);
+  --color-accent: var(--rare-accent-soft, #e3edde);
+  --color-accent-foreground: var(--rare-accent, #214e3d);
+  --color-destructive: var(--rare-danger, #c43d3d);
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--rare-border, #dfe2d7);
+  --color-input: var(--rare-border, #dfe2d7);
+  --color-ring: var(--rare-accent, #214e3d);
+}
+
+/* Protect RareUI components from host/UA element defaults without enabling global Tailwind Preflight */
+@layer base {
+  [data-rare-root] *,
+  [data-rare-root] *::before,
+  [data-rare-root] *::after {
+    box-sizing: border-box;
+  }
+
+  [data-rare-root] ul,
+  [data-rare-root] ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  [data-rare-root] button {
+    appearance: none;
+    background-color: transparent;
+    border: 0 solid var(--rare-border, currentColor);
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+}
+
+/* Smooth keyframes for Vaul drawer & RareUI utilities */
+[data-vaul-drawer] {
+  touch-action: none;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-rare-root] * {
+    scroll-behavior: auto !important;
+  }
+}
